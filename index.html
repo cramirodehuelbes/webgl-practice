@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Large Corporation Simulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ink:#161b22;
+    --ink-soft:#4b5768;
+    --paper:#eef1f4;
+    --paper-raised:#ffffff;
+    --paper-sunken:#e1e6ea;
+    --line:#c7d0d8;
+    --accent:#2f5fd8;
+    --accent-ink:#ffffff;
+    --accent-soft:#dbe6fb;
+    --good:#0f9c8f;
+    --bad:#c9432f;
+    --shadow:0 18px 50px -20px rgba(20,30,45,0.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#e7ecf1;
+      --ink-soft:#9aabbb;
+      --paper:#10141a;
+      --paper-raised:#1a212b;
+      --paper-sunken:#0b0e13;
+      --line:#2b3542;
+      --accent:#7098ff;
+      --accent-ink:#0b0e13;
+      --accent-soft:#1c2740;
+      --good:#3fe0cd;
+      --bad:#ff8672;
+      --shadow:0 18px 50px -20px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#e7ecf1;
+    --ink-soft:#9aabbb;
+    --paper:#10141a;
+    --paper-raised:#1a212b;
+    --paper-sunken:#0b0e13;
+    --line:#2b3542;
+    --accent:#7098ff;
+    --accent-ink:#0b0e13;
+    --accent-soft:#1c2740;
+    --good:#3fe0cd;
+    --bad:#ff8672;
+    --shadow:0 18px 50px -20px rgba(0,0,0,0.6);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    overflow:hidden;
+    -webkit-user-select:none; user-select:none;
+  }
+  .display{font-family:"Archivo Black","IBM Plex Sans",system-ui,sans-serif;}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+
+  #glHost{position:fixed; inset:0;}
+  #gl{width:100%; height:100%; display:block; touch-action:none;}
+
+  /* ---------- Loading ---------- */
+  #loading{
+    position:fixed; inset:0; z-index:50;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:
+      radial-gradient(ellipse at 50% -10%, var(--accent-soft), transparent 60%),
+      var(--paper);
+    text-align:center; padding:24px;
+  }
+  #loading h1{
+    font-size:clamp(28px,6vw,58px);
+    letter-spacing:0.5px;
+    margin:0 0 6px;
+    text-wrap:balance;
+    line-height:1.02;
+  }
+  #loading .tagline{
+    color:var(--ink-soft);
+    font-size:14px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    margin:0 0 40px;
+  }
+  .track{
+    width:min(420px,80vw);
+    height:8px;
+    border-radius:99px;
+    background:var(--paper-sunken);
+    border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .track > div{
+    height:100%; width:0%;
+    background:linear-gradient(90deg,var(--accent),var(--good));
+    border-radius:99px;
+    transition:width .25s ease;
+  }
+  #loadStatus{
+    margin-top:16px; min-height:18px;
+    font-size:13px; color:var(--ink-soft);
+    font-family:"IBM Plex Mono",monospace;
+  }
+  #enterBtn{
+    margin-top:28px;
+    opacity:0; pointer-events:none;
+    transform:translateY(6px);
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  #enterBtn.ready{opacity:1; pointer-events:auto; transform:none;}
+
+  button{
+    font-family:inherit; cursor:pointer;
+  }
+  .btn{
+    appearance:none; border:1px solid var(--line);
+    background:var(--paper-raised); color:var(--ink);
+    padding:11px 20px; border-radius:8px;
+    font-size:14px; font-weight:600; letter-spacing:.01em;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{
+    background:var(--accent); border-color:var(--accent); color:var(--accent-ink);
+  }
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn:focus-visible, .chip:focus-visible, .rung:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed; inset:0; z-index:20; pointer-events:none; font-family:"IBM Plex Sans",sans-serif;}
+  .hud-panel{
+    position:absolute; pointer-events:auto;
+    background:color-mix(in srgb, var(--paper-raised) 82%, transparent);
+    backdrop-filter:blur(6px);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+  }
+  #roleCard{top:16px; left:16px; padding:10px 14px;}
+  #roleCard .role-label{font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft);}
+  #roleCard .role-name{font-size:15px; font-weight:700; margin-top:2px;}
+  #roleCard .role-stats{font-size:11px; color:var(--ink-soft); margin-top:4px;}
+
+  #stockCard{top:16px; right:16px; padding:10px 16px; text-align:right;}
+  #stockCard .stock-label{font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft);}
+  #stockCard .stock-value{font-size:22px; font-weight:700; display:flex; gap:8px; align-items:baseline; justify-content:flex-end;}
+  #stockCard .stock-delta{font-size:12px;}
+  .up{color:var(--good);}
+  .down{color:var(--bad);}
+
+  #aiBadge{
+    position:absolute; top:78px; right:16px; pointer-events:none;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    padding:5px 9px; border-radius:99px; border:1px solid var(--line);
+    background:color-mix(in srgb, var(--paper-raised) 82%, transparent);
+    display:flex; align-items:center; gap:6px;
+  }
+  #aiBadge .dot{width:7px; height:7px; border-radius:99px; background:var(--ink-soft);}
+  #aiBadge.live .dot{background:var(--good); box-shadow:0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.4;}}
+
+  #feed{
+    left:16px; bottom:16px; padding:10px 12px;
+    width:min(280px,60vw); font-size:11.5px; color:var(--ink-soft);
+    display:flex; flex-direction:column; gap:4px;
+  }
+  #feed .feed-title{font-size:10px; letter-spacing:.14em; text-transform:uppercase; margin-bottom:2px; color:var(--ink-soft);}
+  #feed .feed-row{color:var(--ink);}
+
+  #hint{
+    right:16px; bottom:16px; padding:8px 12px;
+    font-size:11px; color:var(--ink-soft); text-align:right;
+  }
+
+  #crosshair{
+    position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px 0 0 -3px;
+    border-radius:99px; background:color-mix(in srgb, var(--ink) 55%, transparent);
+  }
+
+  #interactPrompt{
+    position:absolute; left:50%; bottom:19%; transform:translate(-50%,0) scale(.96);
+    padding:9px 16px; border-radius:99px;
+    background:var(--ink); color:var(--paper);
+    font-size:13px; font-weight:600; letter-spacing:.02em;
+    opacity:0; transition:opacity .18s ease, transform .18s ease;
+    white-space:nowrap;
+  }
+  #interactPrompt.show{opacity:1; transform:translate(-50%,0) scale(1);}
+  #interactPrompt kbd{
+    background:color-mix(in srgb, var(--paper) 20%, transparent);
+    border:1px solid color-mix(in srgb, var(--paper) 35%, transparent);
+    border-radius:4px; padding:1px 6px; margin-right:6px; font-family:"IBM Plex Mono",monospace;
+  }
+
+  #touchControls{position:absolute; inset:0; pointer-events:none; display:none;}
+  #touchControls.show{display:block;}
+  .tpad{position:absolute; pointer-events:auto; display:grid; gap:6px;}
+  #tMove{left:14px; bottom:96px; grid-template-columns:repeat(3,46px); grid-template-rows:repeat(2,46px);}
+  #tMove button:nth-child(1){grid-column:2; grid-row:1;}
+  #tMove button:nth-child(2){grid-column:1; grid-row:2;}
+  #tMove button:nth-child(3){grid-column:2; grid-row:2;}
+  #tMove button:nth-child(4){grid-column:3; grid-row:2;}
+  #tTurn{right:14px; bottom:96px; grid-template-columns:repeat(2,46px);}
+  .tbtn{
+    width:46px; height:46px; border-radius:12px; border:1px solid var(--line);
+    background:color-mix(in srgb, var(--paper-raised) 78%, transparent);
+    color:var(--ink); font-weight:700; font-size:15px;
+  }
+  #tInteract{
+    position:absolute; right:18px; bottom:20px; pointer-events:auto;
+    width:64px; height:64px; border-radius:99px; border:1px solid var(--accent);
+    background:var(--accent); color:var(--accent-ink); font-weight:800; font-size:13px;
+  }
+
+  /* ---------- Modals ---------- */
+  .overlay{
+    position:fixed; inset:0; z-index:40;
+    display:flex; align-items:center; justify-content:center;
+    background:color-mix(in srgb, var(--ink) 38%, transparent);
+    padding:20px;
+  }
+  .sheet{
+    width:min(560px,100%);
+    max-height:min(720px,88vh);
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+  .sheet-head{
+    padding:18px 22px 14px; border-bottom:1px solid var(--line);
+    background:
+      repeating-linear-gradient(135deg, color-mix(in srgb, var(--accent) 5%, transparent) 0 10px, transparent 10px 20px);
+  }
+  .sheet-head .eyebrow{font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft);}
+  .sheet-head h2{margin:3px 0 0; font-size:20px; letter-spacing:.01em;}
+  .sheet-body{padding:18px 22px; overflow-y:auto; flex:1;}
+  .sheet-foot{padding:14px 22px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px;}
+
+  textarea#reportText{
+    width:100%; min-height:150px; resize:vertical;
+    border:1px solid var(--line); border-radius:10px;
+    background:var(--paper-sunken); color:var(--ink);
+    padding:12px 14px; font-size:14px; line-height:1.5;
+    font-family:"IBM Plex Sans",sans-serif;
+  }
+  textarea#reportText:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0;}
+  .chip{
+    border:1px solid var(--line); background:var(--accent-soft); color:var(--ink);
+    border-radius:99px; padding:5px 11px; font-size:12px; font-weight:500;
+  }
+  .chip:hover{border-color:var(--accent);}
+  .meta-row{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+  .ladder{display:flex; flex-direction:column-reverse; gap:10px;}
+  .rung{
+    border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+    background:var(--paper-sunken); opacity:.4; transform:translateY(4px);
+    transition:opacity .3s ease, transform .3s ease, border-color .3s ease, background .3s ease;
+  }
+  .rung.visible{opacity:1; transform:none;}
+  .rung.state-active{border-color:var(--accent);}
+  .rung.state-pass{border-color:var(--good); background:color-mix(in srgb, var(--good) 10%, var(--paper-sunken));}
+  .rung.state-perfect{border-color:var(--good); background:color-mix(in srgb, var(--good) 20%, var(--paper-sunken));}
+  .rung.state-fail{border-color:var(--bad); background:color-mix(in srgb, var(--bad) 10%, var(--paper-sunken));}
+  .rung-top{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .rung-who{font-size:13px; font-weight:700;}
+  .rung-who span{font-weight:500; color:var(--ink-soft);}
+  .badge{
+    font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    padding:3px 8px; border-radius:99px; border:1px solid var(--line); color:var(--ink-soft);
+  }
+  .state-pass .badge{color:var(--good); border-color:var(--good);}
+  .state-perfect .badge{color:var(--good); border-color:var(--good);}
+  .state-fail .badge{color:var(--bad); border-color:var(--bad);}
+  .rung-summary{margin:8px 0 0; font-size:13px; line-height:1.5;}
+  .rung-remark{margin:6px 0 0; font-size:12px; font-style:italic; color:var(--ink-soft);}
+
+  #ladderOutcome{
+    margin-top:14px; padding:14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--paper-sunken); font-size:13.5px; line-height:1.5; display:none;
+  }
+  #ladderOutcome.show{display:block;}
+  #ladderOutcome.perfect{border-color:var(--good); background:color-mix(in srgb, var(--good) 14%, var(--paper-sunken));}
+  #ladderOutcome .oc-title{font-weight:700; margin-bottom:4px;}
+
+  #bankrupt{display:none;}
+  #bankrupt.show{display:flex;}
+
+  [hidden]{display:none !important;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div id="glHost"><canvas id="gl"></canvas></div>
+
+<!-- Loading -->
+<div id="loading">
+  <h1 class="display">LARGE CORPORATION<br/>SIMULATOR</h1>
+  <p class="tagline">a workplace of infinite synergy</p>
+  <div class="track"><div id="loadFill"></div></div>
+  <div id="loadStatus" class="mono">Initializing...</div>
+  <button id="enterBtn" class="btn primary">Clock In ▸</button>
+</div>
+
+<!-- HUD -->
+<div id="hud" hidden>
+  <div id="roleCard" class="hud-panel">
+    <div class="role-label">Your Title</div>
+    <div class="role-name">Entry-Level Employee</div>
+    <div class="role-stats mono" id="lifetimeStats">Perfect reports: 0 · Reports filed: 0</div>
+  </div>
+
+  <div id="stockCard" class="hud-panel">
+    <div class="stock-label">CORP <span id="stockTicker">$0.00</span></div>
+    <div class="stock-value mono"><span id="stockValue">$0.00</span> <span id="stockDelta" class="stock-delta"></span></div>
+  </div>
+
+  <div id="aiBadge"><span class="dot"></span><span id="aiBadgeText">Checking AI link…</span></div>
+
+  <div id="feed" class="hud-panel">
+    <div class="feed-title">Newswire</div>
+    <div id="feedList"></div>
+  </div>
+
+  <div id="hint" class="hud-panel">
+    <span class="mono">WASD move · ◂▸ turn · drag to look · <b>E</b> interact</span>
+  </div>
+
+  <div id="crosshair"></div>
+  <div id="interactPrompt"><kbd>E</kbd>Submit report to your boss</div>
+
+  <div id="touchControls">
+    <div id="tMove" class="tpad">
+      <button class="tbtn" data-key="w">▲</button>
+      <button class="tbtn" data-key="a">◂</button>
+      <button class="tbtn" data-key="s">▼</button>
+      <button class="tbtn" data-key="d">▸</button>
+    </div>
+    <div id="tTurn" class="tpad">
+      <button class="tbtn" data-key="ArrowLeft">↺</button>
+      <button class="tbtn" data-key="ArrowRight">↻</button>
+    </div>
+    <button id="tInteract" class="tbtn">TALK</button>
+  </div>
+</div>
+
+<!-- Report modal -->
+<div class="overlay" id="reportOverlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="eyebrow">Quarterly Submission</div>
+      <h2 id="reportHeading">Submit Report</h2>
+    </div>
+    <div class="sheet-body">
+      <textarea id="reportText" maxlength="1200" placeholder="Describe, in plain language, what you actually accomplished this quarter. Specifics and real numbers survive the climb best..."></textarea>
+      <div class="meta-row"><span id="wordCount">0 words</span><span>Clarity is a competitive advantage.</span></div>
+      <div class="chips" id="chipRow"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn" id="reportCancel">Cancel</button>
+      <button class="btn primary" id="reportSubmit" disabled>Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ladder modal -->
+<div class="overlay" id="ladderOverlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="eyebrow">Chain of Command</div>
+      <h2>Climbing the Corporate Ladder</h2>
+    </div>
+    <div class="sheet-body">
+      <div class="ladder" id="ladderList"></div>
+      <div id="ladderOutcome"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn primary" id="ladderClose" disabled>Back to the Office</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bankrupt overlay -->
+<div class="overlay" id="bankrupt">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="eyebrow">Board Notice</div>
+      <h2>Undisclosed Restructuring Event</h2>
+    </div>
+    <div class="sheet-body">
+      <p>The stock has bottomed out. The board has initiated a "strategic realignment." You, miraculously, still have a desk.</p>
+      <p class="mono" style="color:var(--ink-soft); font-size:12.5px;">Lifetime perfect reports survive the restructuring. Everything else does not.</p>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn primary" id="bankruptRestart">Sign New Offer Letter</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.144.0/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ============================= DATA ============================= */
+
+const TITLES = ["Team Lead","Manager","Senior Manager","Director","Vice President","Senior Vice President","Chief Operating Officer","Chief Executive Officer"];
+const NAMES  = ["Denny Okafor-Wells","Priya Lindqvist","Marcus Feinberg","Odalys Chen","Grant Voss III","Yumiko Castellane","Reginald Bosch","Bex Thorne-Vandermeer"];
+const PERSONAS = [
+  "obsessed with agile ceremonies, daily stand-ups, and sports metaphors",
+  "lives in back-to-back meetings and loves to 'circle back' and 'take it offline'",
+  "measures everything in KPIs and OKRs and is mildly addicted to dashboards",
+  "speaks almost exclusively in strategic quadrants and two-by-two frameworks",
+  "obsessed with 'synergy' and 'stakeholder alignment,' and plays a lot of golf",
+  "thinks in market disruption and 'north star' visions, and rarely reads past the first line",
+  "cares only about operational efficiency and headcount, and speaks mostly in acronyms",
+  "thinks at 30,000 feet about shareholder value, moonshots, and personal legacy"
+];
+
+const BUZZWORDS = ["synergy","bandwidth","circle back","low-hanging fruit","move the needle","deep dive","core competency","north star","best-in-class","cross-functional","value-add","paradigm shift","deliverable","stakeholder alignment","operationalize","ideate","touch base","action item","growth mindset","boil the ocean"];
+
+const LOAD_LINES = [
+  "Synergizing core assets…",
+  "Leveraging cross-functional bandwidth…",
+  "Circling back with the building…",
+  "Operationalizing the elevator…",
+  "Right-sizing the loading bar…",
+  "Ideating on a welcome mat…",
+  "Aligning stakeholders on lighting…",
+  "Unlocking your badge access…"
+];
+
+const JARGON_VERBS = ["leverage","synergize","operationalize","action","unpack","socialize","pressure-test","double-click into","circle back on","ideate around"];
+const JARGON_ADJ = ["mission-critical","best-in-class","forward-leaning","scalable","synergistic","results-driven","enterprise-grade","cross-functional","high-impact","bleeding-edge"];
+const JARGON_NOUN = ["core competencies","the roadmap","stakeholder alignment","the north star","the value stack","the flywheel","our deliverables","the growth engine","key learnings","the synergy pipeline"];
+
+/* ============================= STATE ============================= */
+
+const STORE_KEY = "lcs_state_v1";
+let gameState = { stock: 50, lifetimePerfect: 0, lifetimeReports: 0, feed: [] };
+(function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){ const parsed = JSON.parse(raw); if(parsed && typeof parsed==="object") gameState = Object.assign(gameState, parsed); }
+  }catch(e){ /* storage unavailable — play with defaults */ }
+})();
+function saveState(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(gameState)); }catch(e){}
+}
+
+let sampleFn = null;
+(async function initSample(){
+  try{
+    if(window.claude && typeof window.claude.use === "function"){
+      sampleFn = await window.claude.use("sample");
+    }
+  }catch(e){ sampleFn = null; }
+  updateAiBadge();
+})();
+
+function updateAiBadge(){
+  const badge = document.getElementById("aiBadge");
+  const text = document.getElementById("aiBadgeText");
+  if(sampleFn){ badge.classList.add("live"); text.textContent = "Live AI bosses"; }
+  else{ badge.classList.remove("live"); text.textContent = "Simulated bosses"; }
+}
+
+/* ============================= THREE.JS SCENE ============================= */
+
+const canvas = document.getElementById("gl");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio||1, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xdfe6ea);
+scene.fog = new THREE.Fog(0xdfe6ea, 14, 34);
+
+const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 100);
+const EYE_HEIGHT = 1.65;
+
+function resize(){
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+resize();
+
+/* ---- lighting ---- */
+const hemi = new THREE.HemisphereLight(0xeaf2f7, 0x7c8894, 0.85);
+scene.add(hemi);
+
+function ceilingLight(x,z){
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.2,1.1),
+    new THREE.MeshBasicMaterial({ color:0xf3f9ff })
+  );
+  panel.rotation.x = Math.PI/2;
+  panel.position.set(x, 5.44, z);
+  scene.add(panel);
+  const pl = new THREE.PointLight(0xeaf4ff, 0.55, 13, 2);
+  pl.position.set(x, 5.0, z);
+  scene.add(pl);
+}
+[11,5,-1,-7,-13].forEach(z=>{ ceilingLight(-3.2,z); ceilingLight(3.2,z); });
+
+/* ---- materials ---- */
+function tileTexture(){
+  const c = document.createElement("canvas"); c.width=c.height=128;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle="#8f9aa6"; ctx.fillRect(0,0,128,128);
+  ctx.strokeStyle="#7c8794"; ctx.lineWidth=2;
+  ctx.strokeRect(1,1,126,126);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(13,17);
+  return tex;
+}
+const floorMat = new THREE.MeshStandardMaterial({ map: tileTexture(), roughness:0.95 });
+const wallMat  = new THREE.MeshStandardMaterial({ color:0xeef1f3, roughness:0.9 });
+const ceilMat  = new THREE.MeshStandardMaterial({ color:0xd7dde2, roughness:0.95 });
+const partitionMat = new THREE.MeshStandardMaterial({ color:0x9aa7b2, roughness:0.85 });
+const deskMat = new THREE.MeshStandardMaterial({ color:0x6b7684, roughness:0.6, metalness:0.1 });
+const screenMat = new THREE.MeshBasicMaterial({ color:0x35c9e1 });
+const glassMat = new THREE.MeshPhysicalMaterial({ color:0xbfe0ea, transparent:true, opacity:0.28, roughness:0.05, metalness:0, side:THREE.DoubleSide });
+const suitMat = new THREE.MeshStandardMaterial({ color:0x2d3b4f, roughness:0.7 });
+const skinMat = new THREE.MeshStandardMaterial({ color:0xd9b48f, roughness:0.8 });
+const plantPotMat = new THREE.MeshStandardMaterial({ color:0x5b6672, roughness:0.8 });
+const plantLeafMat = new THREE.MeshStandardMaterial({ color:0x3f7d6d, roughness:0.7 });
+
+/* ---- room shell ---- */
+const ROOM = { minX:-13, maxX:13, minZ:-17, maxZ:15, height:5.5 };
+function addPlane(w,h,mat,pos,rot){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), mat);
+  m.position.copy(pos); if(rot) m.rotation.copy(rot);
+  scene.add(m);
+  return m;
+}
+addPlane(ROOM.maxX-ROOM.minX, ROOM.maxZ-ROOM.minZ, floorMat, new THREE.Vector3(0,0,(ROOM.minZ+ROOM.maxZ)/2), new THREE.Euler(-Math.PI/2,0,0));
+addPlane(ROOM.maxX-ROOM.minX, ROOM.maxZ-ROOM.minZ, ceilMat, new THREE.Vector3(0,ROOM.height,(ROOM.minZ+ROOM.maxZ)/2), new THREE.Euler(Math.PI/2,0,0));
+addPlane(ROOM.maxZ-ROOM.minZ, ROOM.height, wallMat, new THREE.Vector3(ROOM.minX,ROOM.height/2,(ROOM.minZ+ROOM.maxZ)/2), new THREE.Euler(0,Math.PI/2,0));
+addPlane(ROOM.maxZ-ROOM.minZ, ROOM.height, wallMat, new THREE.Vector3(ROOM.maxX,ROOM.height/2,(ROOM.minZ+ROOM.maxZ)/2), new THREE.Euler(0,-Math.PI/2,0));
+addPlane(ROOM.maxX-ROOM.minX, ROOM.height, wallMat, new THREE.Vector3(0,ROOM.height/2,ROOM.maxZ), new THREE.Euler(0,Math.PI,0));
+addPlane(ROOM.maxX-ROOM.minX, ROOM.height, wallMat, new THREE.Vector3(0,ROOM.height/2,ROOM.minZ), new THREE.Euler(0,0,0));
+
+/* ---- posters ---- */
+function posterTexture(lines){
+  const c = document.createElement("canvas"); c.width=512; c.height=320;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle="#f4f6f8"; ctx.fillRect(0,0,512,320);
+  ctx.strokeStyle="#2f5fd8"; ctx.lineWidth=10; ctx.strokeRect(8,8,496,304);
+  ctx.fillStyle="#161b22"; ctx.textAlign="center";
+  ctx.font="700 34px Arial";
+  ctx.fillText(lines[0], 256, 150);
+  ctx.font="600 18px Arial"; ctx.fillStyle="#4b5768";
+  ctx.fillText(lines[1]||"", 256, 190);
+  return new THREE.CanvasTexture(c);
+}
+function poster(lines,x,z,ry){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.6), new THREE.MeshBasicMaterial({ map: posterTexture(lines) }));
+  m.position.set(x,2.6,z); m.rotation.y = ry;
+  scene.add(m);
+}
+poster(["TEAMWORK","makes the dream work"], -12.94, 3, Math.PI/2);
+poster(["THINK SYNERGY","before you think"], 12.94, -3, -Math.PI/2);
+poster(["HANG IN THERE","the roadmap needs you"], 0, 14.94, Math.PI);
+
+/* ---- obstacles (also collidable) ---- */
+const OBSTACLES = [
+  {minX:-8,maxX:-3,minZ:5.7,maxZ:8.3},
+  {minX:3,maxX:8,minZ:5.7,maxZ:8.3},
+  {minX:-8,maxX:-3,minZ:-0.3,maxZ:2.3},
+  {minX:3,maxX:8,minZ:-0.3,maxZ:2.3},
+  {minX:-8,maxX:-3,minZ:-6.3,maxZ:-3.7},
+  {minX:3,maxX:8,minZ:-6.3,maxZ:-3.7},
+  {minX:-6.3,maxX:-5.9,minZ:-16.5,maxZ:-12.5},
+  {minX:5.9,maxX:6.3,minZ:-16.5,maxZ:-12.5},
+  {minX:-6.1,maxX:-1.6,minZ:-12.7,maxZ:-12.3},
+  {minX:1.6,maxX:6.1,minZ:-12.7,maxZ:-12.3},
+  {minX:-1.1,maxX:1.1,minZ:-13.6,maxZ:-12.9},
+  {minX:9.6,maxX:10.4,minZ:10.6,maxZ:11.4},
+  {minX:-10.4,maxX:-9.6,minZ:10.6,maxZ:11.4},
+];
+
+function cubicle(cx,cz,mirror){
+  const g = new THREE.Group();
+  const wallGeo = new THREE.BoxGeometry(5,1.15,0.18);
+  const w1 = new THREE.Mesh(wallGeo, partitionMat); w1.position.set(cx,0.58,cz-1.25); g.add(w1);
+  const w2 = new THREE.Mesh(wallGeo, partitionMat); w2.position.set(cx,0.58,cz+1.25); g.add(w2);
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.75,0.9), deskMat);
+  desk.position.set(cx + (mirror?-1:1), 0.375, cz);
+  g.add(desk);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.7,0.45), screenMat);
+  screen.position.set(cx + (mirror?-1:1), 0.95, cz - 0.35 + (mirror?0.7:0));
+  screen.rotation.y = mirror ? Math.PI : 0;
+  g.add(screen);
+  scene.add(g);
+}
+[7,1,-5].forEach(z=>{ cubicle(-5.5,z,false); cubicle(5.5,z,true); });
+
+function decor(){
+  function plant(x,z){
+    const g = new THREE.Group();
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.26,0.4,10), plantPotMat);
+    pot.position.set(x,0.2,z); g.add(pot);
+    const leaves = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55,0), plantLeafMat);
+    leaves.position.set(x,0.85,z); g.add(leaves);
+    scene.add(g);
+  }
+  function cooler(x,z){
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,1.1,10), new THREE.MeshStandardMaterial({color:0xcfd6db, roughness:0.4}));
+    body.position.set(x,0.55,z); g.add(body);
+    const jug = new THREE.Mesh(new THREE.SphereGeometry(0.24,10,10), new THREE.MeshPhysicalMaterial({color:0x9fd6e6, transparent:true, opacity:0.55}));
+    jug.position.set(x,1.2,z); g.add(jug);
+    scene.add(g);
+  }
+  plant(-10,11); cooler(10,11);
+}
+decor();
+
+/* ---- boss office ---- */
+function officeGlassWalls(){
+  const wSide = new THREE.Mesh(new THREE.PlaneGeometry(4,3.4), glassMat);
+  wSide.position.set(-6.1,1.9,-14.5); wSide.rotation.y = Math.PI/2; scene.add(wSide);
+  const wSide2 = wSide.clone(); wSide2.position.x = 6.1; wSide2.rotation.y = -Math.PI/2; scene.add(wSide2);
+  const front1 = new THREE.Mesh(new THREE.PlaneGeometry(4.5,3.4), glassMat);
+  front1.position.set(-3.85,1.9,-12.5); scene.add(front1);
+  const front2 = front1.clone(); front2.position.x = 3.85; scene.add(front2);
+}
+officeGlassWalls();
+
+function makeBoss(level){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34,0.85,4,8), suitMat);
+  body.position.y = 1.05; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24,14,14), skinMat);
+  head.position.y = 1.72; g.add(head);
+  g.position.set(0,0,-14.5);
+  g.rotation.y = Math.PI;
+  scene.add(g);
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.75,0.9), deskMat);
+  desk.position.set(0,0.375,-13.25); scene.add(desk);
+
+  const c = document.createElement("canvas"); c.width=512; c.height=128;
+  const ctx = c.getContext("2d");
+  function draw(){
+    ctx.clearRect(0,0,512,128);
+    ctx.fillStyle="rgba(22,27,34,0.85)"; roundRect(ctx,26,20,460,88,16); ctx.fill();
+    ctx.fillStyle="#f4f6f8"; ctx.textAlign="center"; ctx.font="700 30px Arial";
+    ctx.fillText(NAMES[level], 256, 62);
+    ctx.font="600 20px Arial"; ctx.fillStyle="#9fb3d9";
+    ctx.fillText(TITLES[level], 256, 92);
+  }
+  function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  draw();
+  const tex = new THREE.CanvasTexture(c);
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent:true }));
+  label.scale.set(2.2,0.55,1);
+  label.position.set(0,2.5,-14.5);
+  scene.add(label);
+
+  return { group:g, head, body };
+}
+const boss = makeBoss(0);
+
+/* ============================= PLAYER / CONTROLS ============================= */
+
+const player = { x:0, z:12, yaw:Math.PI, radius:0.4 };
+const keys = Object.create(null);
+let dragging = false, uiOpen = false;
+
+addEventListener("keydown", e=>{
+  keys[e.key] = true;
+  if(!uiOpen && (e.key==="e"||e.key==="E")) tryInteract();
+  if(e.key==="Escape") closeAllModals();
+});
+addEventListener("keyup", e=>{ keys[e.key] = false; });
+
+canvas.addEventListener("mousedown", e=>{ if(!uiOpen){ dragging = true; } });
+addEventListener("mouseup", ()=>{ dragging = false; });
+addEventListener("mousemove", e=>{
+  if(dragging && !uiOpen){ player.yaw -= e.movementX * 0.0028; }
+});
+canvas.addEventListener("touchstart", ()=>{}, {passive:true});
+
+const isCoarse = matchMedia("(pointer:coarse)").matches;
+if(isCoarse){
+  document.getElementById("touchControls").classList.add("show");
+  document.querySelectorAll("#touchControls [data-key]").forEach(btn=>{
+    const k = btn.getAttribute("data-key");
+    btn.addEventListener("touchstart", e=>{ e.preventDefault(); keys[k]=true; }, {passive:false});
+    btn.addEventListener("touchend", e=>{ e.preventDefault(); keys[k]=false; }, {passive:false});
+  });
+  document.getElementById("tInteract").addEventListener("touchstart", e=>{ e.preventDefault(); if(!uiOpen) tryInteract(); }, {passive:false});
+}
+
+function resolveCollision(pos){
+  pos.x = Math.min(ROOM.maxX-0.5, Math.max(ROOM.minX+0.5, pos.x));
+  pos.z = Math.min(ROOM.maxZ-0.5, Math.max(ROOM.minZ+0.5, pos.z));
+  for(const o of OBSTACLES){
+    const cx = Math.min(o.maxX, Math.max(o.minX, pos.x));
+    const cz = Math.min(o.maxZ, Math.max(o.minZ, pos.z));
+    const dx = pos.x-cx, dz = pos.z-cz;
+    const distSq = dx*dx+dz*dz;
+    if(distSq < player.radius*player.radius){
+      const dist = Math.sqrt(distSq) || 0.0001;
+      const push = player.radius-dist;
+      pos.x += (dx/dist)*push;
+      pos.z += (dz/dist)*push;
+    }
+  }
+}
+
+let lastT = performance.now();
+function updatePlayer(dt){
+  if(uiOpen) return;
+  const turnSpeed = 1.9;
+  if(keys["ArrowLeft"]) player.yaw += turnSpeed*dt;
+  if(keys["ArrowRight"]) player.yaw -= turnSpeed*dt;
+
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  const rx = Math.cos(player.yaw), rz = -Math.sin(player.yaw);
+  let mx=0, mz=0;
+  if(keys["w"]||keys["W"]){ mx+=fx; mz+=fz; }
+  if(keys["s"]||keys["S"]){ mx-=fx; mz-=fz; }
+  if(keys["a"]||keys["A"]){ mx-=rx; mz-=rz; }
+  if(keys["d"]||keys["D"]){ mx+=rx; mz+=rz; }
+  const len = Math.hypot(mx,mz);
+  if(len>0.0001){
+    const speed = 4.6;
+    player.x += (mx/len)*speed*dt;
+    player.z += (mz/len)*speed*dt;
+  }
+  resolveCollision(player);
+
+  camera.position.set(player.x, EYE_HEIGHT, player.z);
+  camera.rotation.set(0, player.yaw, 0, "YXZ");
+}
+
+/* ---- interaction prompt ---- */
+const interactPrompt = document.getElementById("interactPrompt");
+function nearBoss(){
+  return Math.hypot(player.x-0, player.z-(-14.5)) < 4.2;
+}
+function tryInteract(){
+  if(nearBoss()) openReportModal();
+}
+
+/* ---- boss idle animation ---- */
+function animateBoss(t){
+  boss.head.position.y = 1.72 + Math.sin(t*1.4)*0.01;
+}
+
+function frame(){
+  requestAnimationFrame(frame);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now-lastT)/1000);
+  lastT = now;
+  updatePlayer(dt);
+  animateBoss(now/1000);
+  interactPrompt.classList.toggle("show", !uiOpen && nearBoss());
+  renderer.render(scene, camera);
+}
+
+/* ============================= LOADING SEQUENCE ============================= */
+
+const loadFill = document.getElementById("loadFill");
+const loadStatus = document.getElementById("loadStatus");
+const enterBtn = document.getElementById("enterBtn");
+let li = 0;
+loadStatus.textContent = LOAD_LINES[0];
+const loadTimer = setInterval(()=>{
+  li = (li+1) % LOAD_LINES.length;
+  loadStatus.textContent = LOAD_LINES[li];
+}, 420);
+
+let progress = 0;
+const progTimer = setInterval(()=>{
+  progress = Math.min(100, progress + 4 + Math.random()*6);
+  loadFill.style.width = progress+"%";
+  if(progress>=100){
+    clearInterval(progTimer);
+    clearInterval(loadTimer);
+    loadStatus.textContent = "Onboarding complete.";
+    enterBtn.classList.add("ready");
+  }
+}, 140);
+
+function startGame(){
+  document.getElementById("loading").remove();
+  document.getElementById("hud").hidden = false;
+  camera.position.set(player.x, EYE_HEIGHT, player.z);
+  camera.rotation.set(0, player.yaw, 0, "YXZ");
+  requestAnimationFrame(frame);
+  updateHud();
+}
+enterBtn.addEventListener("click", startGame);
+
+/* ============================= REPORT MODAL ============================= */
+
+const reportOverlay = document.getElementById("reportOverlay");
+const reportText = document.getElementById("reportText");
+const reportSubmit = document.getElementById("reportSubmit");
+const wordCount = document.getElementById("wordCount");
+const chipRow = document.getElementById("chipRow");
+
+BUZZWORDS.forEach(w=>{
+  const b = document.createElement("button");
+  b.type="button"; b.className="chip"; b.textContent = "+ "+w;
+  b.addEventListener("click", ()=>{
+    const sep = reportText.value && !/\s$/.test(reportText.value) ? " " : "";
+    reportText.value += sep + w;
+    reportText.dispatchEvent(new Event("input"));
+    reportText.focus();
+  });
+  chipRow.appendChild(b);
+});
+
+reportText.addEventListener("input", ()=>{
+  const words = reportText.value.trim().split(/\s+/).filter(Boolean).length;
+  wordCount.textContent = words + " word" + (words===1?"":"s");
+  reportSubmit.disabled = reportText.value.trim().length < 15;
+});
+
+function openReportModal(){
+  uiOpen = true;
+  document.getElementById("reportHeading").textContent = "Submit Report to " + NAMES[0] + ", " + TITLES[0];
+  reportOverlay.hidden = false;
+  reportText.value = "";
+  reportText.dispatchEvent(new Event("input"));
+  setTimeout(()=>reportText.focus(), 30);
+}
+function closeReportModal(){ reportOverlay.hidden = true; uiOpen = false; }
+document.getElementById("reportCancel").addEventListener("click", closeReportModal);
+document.getElementById("reportSubmit").addEventListener("click", ()=>{
+  const text = reportText.value.trim();
+  reportOverlay.hidden = true;
+  openLadder(text);
+});
+
+function closeAllModals(){
+  if(!reportOverlay.hidden) closeReportModal();
+}
+
+/* ============================= LLM CHAIN ============================= */
+
+function buildPrompt(level, text, isFirst){
+  const title = TITLES[level];
+  const persona = PERSONAS[level];
+  const isCeo = level === TITLES.length-1;
+  const roleNote = isFirst
+    ? "An entry-level employee just handed you their quarterly report."
+    : "Your direct report just forwarded you their summary of a report that started several rungs below you.";
+  const verdictNote = isCeo
+    ? `You are the CEO, the top of the company. Reply verdict must be one of "PERFECT" (only if this is still remarkably clear, contains a concrete real accomplishment or number, and is genuinely impressive despite the jargon), "PASS" (mundane but harmless — forwarded to the board without much thought), or "FAIL" (meaningless buzzword soup, or it no longer makes sense).`
+    : `Reply verdict must be "PASS" (this still conveys one clear, useful point worth forwarding to your own boss, even if buried in jargon) or "FAIL" (it has degraded into meaningless corporate buzzword soup with no real content left).`;
+  return `You are the ${title} at a sprawling, soulless mega-corporation. You are ${persona}. ${roleNote}
+
+Their submission:
+"""
+${text.slice(0,1500)}
+"""
+
+Rewrite it as a dense, jargon-maximalist executive summary (at most 32 words) in your own voice as the ${title}. Pile on corporate buzzwords and business-speak, but do not invent facts beyond what the original implies.
+
+${verdictNote}
+
+Reply with ONLY this JSON object, no other text: {"summary": "<the jargon rewrite>", "verdict": "<PASS|FAIL${isCeo?'|PERFECT':''}>", "remark": "<one short in-character reaction sentence, at most 18 words, dripping with jargon>"}`;
+}
+
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function substanceScore(text){
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const distinct = new Set(words.map(w=>w.toLowerCase())).size;
+  const hasNumber = /\d/.test(text);
+  const hasVerb = /(built|shipped|launched|fixed|reduced|increased|completed|saved|automated|closed|delivered|grew|cut)/i.test(text);
+  let score = Math.min(1, words.length/70) * 0.5 + Math.min(1, distinct/40) * 0.3;
+  if(hasNumber) score += 0.12;
+  if(hasVerb) score += 0.08;
+  return Math.max(0, Math.min(1, score));
+}
+
+async function fakeEvaluate(level, text, isFirst, score){
+  await new Promise(r=>setTimeout(r, 550 + Math.random()*450));
+  const t1 = JARGON_VERBS[Math.floor(Math.random()*JARGON_VERBS.length)];
+  const t2 = JARGON_NOUN[Math.floor(Math.random()*JARGON_NOUN.length)];
+  const t3 = JARGON_ADJ[Math.floor(Math.random()*JARGON_ADJ.length)];
+  const t4 = JARGON_NOUN[Math.floor(Math.random()*JARGON_NOUN.length)];
+  const summary = `Per our review, we're set to ${t1} ${t2} to unlock ${t3} value across ${t4}.`;
+  const remarks = ["Love the energy — let's take this offline.", "Circling back once I've socialized this.", "This really moves the needle for us.", "Strong deck. Let's double-click next sprint.", "I'm aligned. Sending it upstream."];
+  const failRemarks = ["I... don't know what this says.", "This needs more synergy, frankly.", "Can we ideate on this again?", "Not feeling the alignment here."];
+  const basePass = 0.42 + score*0.5;
+  const chance = basePass * Math.pow(0.8, level);
+  const isCeo = level === TITLES.length-1;
+  let verdict;
+  if(Math.random() < chance){
+    verdict = (isCeo && score > 0.72 && Math.random() < score) ? "PERFECT" : "PASS";
+  } else {
+    verdict = "FAIL";
+  }
+  return {
+    summary,
+    verdict,
+    remark: verdict==="FAIL" ? pick(failRemarks) : pick(remarks),
+    simulated: true
+  };
+}
+
+async function evaluateLevel(level, text, isFirst, score){
+  if(sampleFn){
+    try{
+      const data = await sampleFn.json(buildPrompt(level, text, isFirst), { modelTier:"quick" });
+      if(data && typeof data.summary === "string" && typeof data.verdict === "string"){
+        const v = data.verdict.toUpperCase();
+        const isCeoLevel = level === TITLES.length-1;
+        const verdict = (isCeoLevel && v.includes("PERFECT")) ? "PERFECT" : v.includes("PASS") ? "PASS" : "FAIL";
+        return {
+          summary: data.summary.trim().slice(0,400) || "(no summary provided)",
+          verdict,
+          remark: (typeof data.remark==="string" ? data.remark : "").trim().slice(0,200),
+          simulated:false
+        };
+      }
+    }catch(e){
+      if(e && (e.code==="not_granted" || e.code==="sampling_disabled" || e.code==="not_declared" || e.code==="capability_removed")){
+        sampleFn = null; updateAiBadge();
+      }
+    }
+  }
+  return fakeEvaluate(level, text, isFirst, score);
+}
+
+/* ============================= LADDER UI ============================= */
+
+const ladderOverlay = document.getElementById("ladderOverlay");
+const ladderList = document.getElementById("ladderList");
+const ladderOutcome = document.getElementById("ladderOutcome");
+const ladderClose = document.getElementById("ladderClose");
+
+function stockDelta(level, verdict){
+  if(verdict==="FAIL") return -(2.5 + level*0.4);
+  if(verdict==="PASS") return (1.2 + level*0.5);
+  return 30;
+}
+
+function makeRung(level){
+  const el = document.createElement("div");
+  el.className = "rung";
+  el.innerHTML = `
+    <div class="rung-top">
+      <div class="rung-who">${TITLES[level]} <span>· ${NAMES[level]}</span></div>
+      <div class="badge">Pending</div>
+    </div>
+    <p class="rung-summary"></p>
+    <p class="rung-remark"></p>
+  `;
+  return el;
+}
+
+async function openLadder(reportText){
+  uiOpen = true;
+  ladderOverlay.hidden = false;
+  ladderList.innerHTML = "";
+  ladderOutcome.className = ""; ladderOutcome.textContent = "";
+  ladderClose.disabled = true;
+
+  const rungs = TITLES.map((_, i)=>{
+    const r = makeRung(i);
+    ladderList.appendChild(r);
+    return r;
+  });
+
+  const score = substanceScore(reportText);
+  let carry = reportText;
+  let totalDelta = 0;
+  let finalOutcome = null;
+
+  for(let level=0; level<TITLES.length; level++){
+    const rung = rungs[level];
+    rung.classList.add("visible","state-active");
+    rung.querySelector(".badge").textContent = "Reviewing…";
+
+    const result = await evaluateLevel(level, carry, level===0, score);
+    const delta = stockDelta(level, result.verdict);
+    totalDelta += delta;
+    gameState.stock = Math.max(0, gameState.stock + delta);
+    saveState();
+    flashStock(delta);
+
+    rung.classList.remove("state-active");
+    rung.classList.add(result.verdict==="FAIL" ? "state-fail" : result.verdict==="PERFECT" ? "state-perfect" : "state-pass");
+    rung.querySelector(".badge").textContent = result.verdict;
+    rung.querySelector(".rung-summary").textContent = "“" + result.summary + "”";
+    rung.querySelector(".rung-remark").textContent = result.remark || "";
+    rung.scrollIntoView({ behavior:"smooth", block:"nearest" });
+
+    if(result.verdict === "FAIL"){ finalOutcome = { level, verdict:"FAIL" }; break; }
+    if(result.verdict === "PERFECT"){ finalOutcome = { level, verdict:"PERFECT" }; break; }
+    carry = result.summary;
+    if(level === TITLES.length-1){ finalOutcome = { level, verdict:"PASS" }; }
+    await new Promise(r=>setTimeout(r, 180));
+  }
+
+  gameState.lifetimeReports += 1;
+  if(finalOutcome.verdict === "PERFECT") gameState.lifetimePerfect += 1;
+  pushFeed(finalOutcome, totalDelta);
+  saveState();
+  updateHud();
+
+  ladderOutcome.classList.add("show");
+  if(finalOutcome.verdict === "PERFECT"){
+    ladderOutcome.classList.add("perfect");
+    ladderOutcome.innerHTML = `<div class="oc-title">🎉 The CEO calls it PERFECT.</div>The report survived all eight rungs intact. Somewhere, a bell rings on a trading floor. You remain an entry-level employee. Every stock ticks up when reports like this happen.`;
+  } else if(finalOutcome.verdict === "PASS"){
+    ladderOutcome.innerHTML = `<div class="oc-title">It reached the CEO.</div>Verdict: acknowledged, not visionary. Try for something concrete and numeric next time to chase a PERFECT.`;
+  } else {
+    ladderOutcome.innerHTML = `<div class="oc-title">Lost in translation.</div>The report died at the ${TITLES[finalOutcome.level]} desk. Every rung it survived before that still moved the stock.`;
+  }
+
+  ladderClose.disabled = false;
+  saveState();
+}
+
+ladderClose.addEventListener("click", ()=>{
+  ladderOverlay.hidden = true;
+  uiOpen = false;
+  updateHud();
+  if(gameState.stock <= 0) showBankrupt();
+});
+
+/* ============================= HUD ============================= */
+
+function fmtMoney(v){ return "$" + v.toFixed(2); }
+function updateHud(){
+  document.getElementById("stockTicker").textContent = fmtMoney(gameState.stock);
+  document.getElementById("stockValue").textContent = fmtMoney(gameState.stock);
+  document.getElementById("lifetimeStats").textContent = `Perfect reports: ${gameState.lifetimePerfect} · Reports filed: ${gameState.lifetimeReports}`;
+}
+function flashStock(delta){
+  const el = document.getElementById("stockDelta");
+  el.textContent = (delta>=0?"▲ +":"▼ ") + Math.abs(delta).toFixed(2);
+  el.className = "stock-delta " + (delta>=0 ? "up" : "down");
+  document.getElementById("stockValue").textContent = fmtMoney(gameState.stock);
+  document.getElementById("stockTicker").textContent = fmtMoney(gameState.stock);
+}
+function pushFeed(outcome, totalDelta){
+  const msg = outcome.verdict === "PERFECT"
+    ? `PERFECT report reached the CEO (${totalDelta>=0?"+":""}${totalDelta.toFixed(2)})`
+    : outcome.verdict === "PASS"
+      ? `Report reached the CEO, unremarkable (${totalDelta>=0?"+":""}${totalDelta.toFixed(2)})`
+      : `Report died at ${TITLES[outcome.level]} (${totalDelta>=0?"+":""}${totalDelta.toFixed(2)})`;
+  gameState.feed.unshift(msg);
+  gameState.feed = gameState.feed.slice(0,6);
+  renderFeed();
+}
+function renderFeed(){
+  const list = document.getElementById("feedList");
+  list.innerHTML = "";
+  gameState.feed.slice(0,4).forEach(m=>{
+    const d = document.createElement("div");
+    d.className = "feed-row";
+    d.textContent = m;
+    list.appendChild(d);
+  });
+  if(gameState.feed.length===0){
+    const d = document.createElement("div");
+    d.className="feed-row"; d.style.color="var(--ink-soft)";
+    d.textContent = "No reports filed yet.";
+    list.appendChild(d);
+  }
+}
+renderFeed();
+
+/* ============================= BANKRUPTCY ============================= */
+
+const bankrupt = document.getElementById("bankrupt");
+function showBankrupt(){ bankrupt.classList.add("show"); uiOpen = true; }
+document.getElementById("bankruptRestart").addEventListener("click", ()=>{
+  gameState.stock = 50;
+  saveState();
+  updateHud();
+  bankrupt.classList.remove("show");
+  uiOpen = false;
+});
+
+updateHud();
+
+})();
+</script>
+</body>
+</html>
